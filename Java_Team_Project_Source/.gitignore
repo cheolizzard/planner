@@ -1,0 +1,57 @@
+# Database Configuration (보안상 중요 - 비밀번호 포함)
+src/DB/dbconfig.properties
+**/dbconfig.properties
+*.properties
+
+# NetBeans 프로젝트 파일
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# 컴파일된 클래스 파일
+*.class
+
+# 로그 파일
+*.log
+
+# 운영체제별 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE 파일
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+
+# 패키지 파일
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# 임시 파일
+*.tmp
+*.bak
+*.swp
+*~.nib
+*.orig
+
+# 테스트 결과
+test-results/
+*.test
+
+# 기타
+*.cache
+*.lock
+
