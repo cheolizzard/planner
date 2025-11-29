@@ -5,7 +5,6 @@ import DAO.EnrollmentDAO;
 import DAO.TodoDAO;
 import DB.DB_MAN;
 import Model.Course;
-import Model.LectureTime;
 import Model.Student;
 import Model.Todo;
 import Util.UIHelper;
@@ -57,11 +56,10 @@ public class MainFrame extends javax.swing.JFrame {
         this.courseDAO = new CourseDAO();
         this.enrollmentDAO = new EnrollmentDAO();
         this.todoDAO = new TodoDAO();
+        loadTodoList();
         setTitle("NexPlan - " + student.getName() + "님 환영합니다");
         setupEventHandlers();
-        initCalendarPanel();
         loadCourseList();
-        loadTodoList();
     }
     
     /**
@@ -99,6 +97,8 @@ public class MainFrame extends javax.swing.JFrame {
         UIHelper.stylePrimaryButton(btnAddSubject);
         UIHelper.styleSecondaryButton(btnEditSubject);
         UIHelper.styleSecondaryButton(btnDeleteSubject);
+        
+        UIHelper.stylePrimaryButton(btnAddTodo);
     }
     
     /**
@@ -129,172 +129,26 @@ public class MainFrame extends javax.swing.JFrame {
         btnEditSubject.addActionListener(e -> handleEditSubject());
         btnDeleteSubject.addActionListener(e -> handleDeleteSubject());
         
-        // 탭 변경 이벤트
+        btnAddTodo.addActionListener(e -> handleAddTodo());
+        
+        // 탭 변경 시 데이터 새로고침
         tabMain.addChangeListener(e -> {
             if (tabMain.getSelectedIndex() == 1) {
-                // 캘린더/할일 탭 선택 시
                 loadTodoList();
             }
         });
-    }
-    
-    /**
-     * 캘린더 패널 초기화
-     */
-    private void initCalendarPanel() {
-        // 패널에 기본 레이아웃 설정
-        pnlCalendarTodo.setLayout(new java.awt.BorderLayout());
         
-        // 상단: 날짜 선택 및 버튼
-        javax.swing.JPanel topPanel = new javax.swing.JPanel();
-        topPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT));
-        
-        javax.swing.JLabel lblDate = new javax.swing.JLabel("날짜: ");
-        javax.swing.JTextField txtDate = new javax.swing.JTextField(10);
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        txtDate.setText(dateFormat.format(new Date()));
-        txtDate.setEditable(false);
-        
-        javax.swing.JButton btnAddTodo = new javax.swing.JButton("할일 추가");
-        btnAddTodo.addActionListener(e -> handleAddTodo());
-        
-        topPanel.add(lblDate);
-        topPanel.add(txtDate);
-        topPanel.add(btnAddTodo);
-        
-        // 중앙: 할일 리스트
-        javax.swing.JList<String> todoListDisplay = new javax.swing.JList<>();
-        todoListDisplay.setFont(new java.awt.Font("맑은 고딕", 0, 14));
-        javax.swing.JScrollPane scrollPane = new javax.swing.JScrollPane(todoListDisplay);
-        
-        // 하단: 버튼
-        javax.swing.JPanel bottomPanel = new javax.swing.JPanel();
-        bottomPanel.setLayout(new java.awt.FlowLayout());
-        
-        javax.swing.JButton btnEditTodo = new javax.swing.JButton("수정");
-        btnEditTodo.addActionListener(e -> handleEditTodo(todoListDisplay));
-        
-        javax.swing.JButton btnDeleteTodo = new javax.swing.JButton("삭제");
-        btnDeleteTodo.addActionListener(e -> handleDeleteTodo(todoListDisplay));
-        
-        javax.swing.JCheckBox chkShowCompleted = new javax.swing.JCheckBox("완료된 할일 표시");
-        chkShowCompleted.addActionListener(e -> loadTodoList());
-        
-        bottomPanel.add(btnEditTodo);
-        bottomPanel.add(btnDeleteTodo);
-        bottomPanel.add(chkShowCompleted);
-        
-        // 패널에 추가
-        pnlCalendarTodo.add(topPanel, java.awt.BorderLayout.NORTH);
-        pnlCalendarTodo.add(scrollPane, java.awt.BorderLayout.CENTER);
-        pnlCalendarTodo.add(bottomPanel, java.awt.BorderLayout.SOUTH);
-        
-        // 참조 저장 (나중에 사용)
-        // TODO: 멤버 변수로 저장하거나 다른 방식으로 관리
-    }
-    
-    /**
-     * 할일 목록 로드
-     */
-    private void loadTodoList() {
-        try {
-            todoList = todoDAO.getTodosByStudentId(currentStudent.getStudentId());
-            updateTodoListDisplay();
-        } catch (SQLException e) {
-            logger.log(java.util.logging.Level.SEVERE, "할일 목록 로드 실패", e);
-            JOptionPane.showMessageDialog(this, 
-                "할일 목록을 불러오는 중 오류가 발생했습니다.", 
-                "오류", 
-                JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    
-    /**
-     * 할일 리스트 표시 업데이트
-     */
-    private void updateTodoListDisplay() {
-        // TODO: 실제 리스트 컴포넌트에 연결
-        // 현재는 간단한 구현
-    }
-    
-    /**
-     * 할일 추가 처리
-     */
-    private void handleAddTodo() {
-        TodoDialog dialog = new TodoDialog(this, true, currentStudent.getStudentId(), null);
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
-        loadTodoList(); // 목록 새로고침
-    }
-    
-    /**
-     * 할일 수정 처리
-     */
-    private void handleEditTodo(javax.swing.JList<String> todoListDisplay) {
-        int selectedIndex = todoListDisplay.getSelectedIndex();
-        if (selectedIndex == -1) {
-            JOptionPane.showMessageDialog(this, 
-                "수정할 할일을 선택하세요.", 
-                "선택 오류", 
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        if (selectedIndex < todoList.size()) {
-            Todo selectedTodo = todoList.get(selectedIndex);
-            TodoDialog dialog = new TodoDialog(this, true, currentStudent.getStudentId(), selectedTodo);
-            dialog.setLocationRelativeTo(this);
-            dialog.setVisible(true);
-            loadTodoList(); // 목록 새로고침
-        }
-    }
-    
-    /**
-     * 할일 삭제 처리
-     */
-    private void handleDeleteTodo(javax.swing.JList<String> todoListDisplay) {
-        int selectedIndex = todoListDisplay.getSelectedIndex();
-        if (selectedIndex == -1) {
-            JOptionPane.showMessageDialog(this, 
-                "삭제할 할일을 선택하세요.", 
-                "선택 오류", 
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        if (selectedIndex < todoList.size()) {
-            Todo selectedTodo = todoList.get(selectedIndex);
-            int confirm = JOptionPane.showConfirmDialog(this, 
-                "정말 '" + selectedTodo.getTitle() + "' 할일을 삭제하시겠습니까?", 
-                "삭제 확인", 
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
+        // 달력 날짜 클릭 시 화면 갱신
+        jCalendar.addPropertyChangeListener("calendar", e -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            String date = sdf.format(jCalendar.getDate());
+            lblSelectedDate.setText(date);
             
-            if (confirm == JOptionPane.YES_OPTION) {
-                try {
-                    boolean success = todoDAO.deleteTodo(selectedTodo.getTodoId(), currentStudent.getStudentId());
-                    if (success) {
-                        JOptionPane.showMessageDialog(this, 
-                            "할일이 삭제되었습니다.", 
-                            "삭제 완료", 
-                            JOptionPane.INFORMATION_MESSAGE);
-                        loadTodoList();
-                    } else {
-                        JOptionPane.showMessageDialog(this, 
-                            "할일 삭제에 실패했습니다.", 
-                            "오류", 
-                            JOptionPane.ERROR_MESSAGE);
-                    }
-                } catch (SQLException e) {
-                    logger.log(java.util.logging.Level.SEVERE, "할일 삭제 실패", e);
-                    JOptionPane.showMessageDialog(this, 
-                        "할일 삭제 중 오류가 발생했습니다.", 
-                        "오류", 
-                        JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        }
+            updateTodoListDisplay();
+        });
     }
+    
+    
     
     /**
      * 과목 목록 로드
@@ -417,6 +271,136 @@ public class MainFrame extends javax.swing.JFrame {
             }
         }
     }
+    
+    //================================= 캘린더 코드 =================================
+    /**
+     * 할일 목록을 DB에서 새로 불러옵니다.
+     */
+    private void loadTodoList() {
+        if (currentStudent == null) return;
+        
+        try {
+            // DB에서 해당 학생의 모든 할일을 가져옴
+            todoList = todoDAO.getTodosByStudentId(currentStudent.getStudentId());
+            updateTodoListDisplay();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 선택된 날짜에 맞는 할일 카드를 생성해서 화면에 붙입니다.
+     */
+    private void updateTodoListDisplay() {
+        pnlTodoListContainer.removeAll();
+        
+        //  달력에서 선택된 날짜 가져오기
+        Date selectedDate = jCalendar.getDate();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        String targetDateStr = sdf.format(selectedDate);
+
+        // 콜백 만들기
+        TodoActionCallback callback = new TodoActionCallback() {
+            @Override
+            public void onEdit(int todoId) {
+                // 수정 로직
+                handleEditTodoById(todoId);
+            }
+
+            @Override
+            public void onDelete(int todoId) {
+                // 삭제 로직
+                handleDeleteTodoById(todoId);
+            }
+        };
+
+        if (todoList != null) {
+            boolean hasItem = false;
+            for (Todo todo : todoList) {
+                String todoDate = todo.getStartDatetime(); 
+                
+                // 날짜가 일치하는 경우에만 카드 생성
+                if (todoDate != null && todoDate.startsWith(targetDateStr)) {
+                    
+                    // 카드 패널 생성 (데이터 + 콜백 전달)
+                    TodoCardPanel card = new TodoCardPanel(todo, callback);
+                    
+                    // 컨테이너에 붙이기
+                    pnlTodoListContainer.add(card);
+                    
+                    // 카드 사이에 간격 벌리기(px 단위)
+                    pnlTodoListContainer.add(javax.swing.Box.createVerticalStrut(5));
+                    hasItem = true;
+                }
+            }
+            
+            // 할 일이 하나도 없으면 안내 문구 표시
+            if (!hasItem) {
+                javax.swing.JLabel lblEmpty = new javax.swing.JLabel("등록된 일정이 없습니다.");
+                lblEmpty.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+                lblEmpty.setFont(new java.awt.Font("맑은 고딕", 0, 14));
+                lblEmpty.setForeground(java.awt.Color.GRAY);
+                pnlTodoListContainer.add(javax.swing.Box.createVerticalStrut(20));
+                pnlTodoListContainer.add(lblEmpty);
+            }
+        }
+        
+        pnlTodoListContainer.revalidate();
+        pnlTodoListContainer.repaint();
+    }
+    /**
+     * ID를 이용해 할일 삭제 처리
+     */
+    private void handleDeleteTodoById(int todoId) {
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "정말 이 할일을 삭제하시겠습니까?", 
+            "삭제 확인", 
+            JOptionPane.YES_NO_OPTION);
+            
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                todoDAO.deleteTodo(todoId, currentStudent.getStudentId());
+                loadTodoList(); // 삭제 후 목록 새로고침
+            } catch (SQLException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "삭제 실패!");
+            }
+        }
+    }
+
+    /**
+     * ID를 이용해 할일 수정 다이얼로그 띄우기
+     */
+    private void handleEditTodoById(int todoId) {
+        // 리스트에서 해당 ID의 객체 찾기
+        Todo targetTodo = null;
+        for (Todo t : todoList) {
+            if (t.getTodoId() == todoId) {
+                targetTodo = t;
+                break;
+            }
+        }
+        
+        if (targetTodo != null) {
+            // 수정 모드로 다이얼로그 열기
+            TodoDialog dialog = new TodoDialog(this, true, currentStudent.getStudentId(), targetTodo);
+            dialog.setLocationRelativeTo(this);
+            dialog.setVisible(true);
+            loadTodoList();
+        }
+    }
+
+    /**
+     * 할일 추가 버튼 처리
+     */
+    private void handleAddTodo() {
+        // 추가 모드로 다이얼로그 열기 (Todo 객체 null)
+        TodoDialog dialog = new TodoDialog(this, true, currentStudent.getStudentId(), null);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+        loadTodoList();
+    }
+    
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -438,9 +422,17 @@ public class MainFrame extends javax.swing.JFrame {
         btnEditSubject = new javax.swing.JButton();
         btnAddSubject = new javax.swing.JButton();
         pnlCalendarTodo = new javax.swing.JPanel();
+        lblCalendar = new javax.swing.JLabel();
+        lblSelectedDate = new javax.swing.JLabel();
+        lblTodoList = new javax.swing.JLabel();
+        scrTodoList = new javax.swing.JScrollPane();
+        pnlTodoListContainer = new javax.swing.JPanel();
+        jSeparator1 = new javax.swing.JSeparator();
+        btnAddTodo = new javax.swing.JButton();
+        jCalendar = new com.toedter.calendar.JCalendar();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setPreferredSize(new java.awt.Dimension(1200, 550));
+        setPreferredSize(new java.awt.Dimension(800, 550));
 
         pnlTimetable.setPreferredSize(new java.awt.Dimension(800, 400));
 
@@ -493,7 +485,7 @@ public class MainFrame extends javax.swing.JFrame {
                         .addComponent(btnEditSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(18, 18, 18)
                         .addComponent(btnDeleteSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(80, Short.MAX_VALUE))
         );
         pnlTimetableLayout.setVerticalGroup(
             pnlTimetableLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -516,15 +508,69 @@ public class MainFrame extends javax.swing.JFrame {
 
         tabMain.addTab("시간표 관리", pnlTimetable);
 
+        lblCalendar.setFont(new java.awt.Font("맑은 고딕", 1, 24)); // NOI18N
+        lblCalendar.setText("달력");
+
+        lblSelectedDate.setFont(new java.awt.Font("맑은 고딕", 1, 24)); // NOI18N
+        lblSelectedDate.setText("날짜 미정");
+
+        lblTodoList.setFont(new java.awt.Font("맑은 고딕", 0, 16)); // NOI18N
+        lblTodoList.setText("할 일 목록");
+
+        scrTodoList.setHorizontalScrollBarPolicy(javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+
+        pnlTodoListContainer.setBackground(new java.awt.Color(255, 255, 255));
+        pnlTodoListContainer.setLayout(new javax.swing.BoxLayout(pnlTodoListContainer, javax.swing.BoxLayout.Y_AXIS));
+        scrTodoList.setViewportView(pnlTodoListContainer);
+
+        btnAddTodo.setFont(new java.awt.Font("맑은 고딕", 0, 16)); // NOI18N
+        btnAddTodo.setText("+ 할일 추가");
+
+        jCalendar.setBackground(new java.awt.Color(255, 255, 255));
+        jCalendar.setWeekOfYearVisible(false);
+
         javax.swing.GroupLayout pnlCalendarTodoLayout = new javax.swing.GroupLayout(pnlCalendarTodo);
         pnlCalendarTodo.setLayout(pnlCalendarTodoLayout);
         pnlCalendarTodoLayout.setHorizontalGroup(
             pnlCalendarTodoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 740, Short.MAX_VALUE)
+            .addGroup(pnlCalendarTodoLayout.createSequentialGroup()
+                .addGroup(pnlCalendarTodoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(pnlCalendarTodoLayout.createSequentialGroup()
+                        .addGap(133, 133, 133)
+                        .addComponent(lblCalendar))
+                    .addGroup(pnlCalendarTodoLayout.createSequentialGroup()
+                        .addGap(16, 16, 16)
+                        .addComponent(jCalendar, javax.swing.GroupLayout.PREFERRED_SIZE, 319, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(32, 32, 32)
+                .addGroup(pnlCalendarTodoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(lblSelectedDate)
+                    .addComponent(lblTodoList)
+                    .addComponent(btnAddTodo, javax.swing.GroupLayout.DEFAULT_SIZE, 407, Short.MAX_VALUE)
+                    .addComponent(jSeparator1)
+                    .addComponent(scrTodoList))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         pnlCalendarTodoLayout.setVerticalGroup(
             pnlCalendarTodoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 465, Short.MAX_VALUE)
+            .addGroup(pnlCalendarTodoLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(pnlCalendarTodoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblCalendar)
+                    .addComponent(lblSelectedDate))
+                .addGap(7, 7, 7)
+                .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(pnlCalendarTodoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(pnlCalendarTodoLayout.createSequentialGroup()
+                        .addGap(2, 2, 2)
+                        .addComponent(lblTodoList, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(scrTodoList))
+                    .addGroup(pnlCalendarTodoLayout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jCalendar, javax.swing.GroupLayout.PREFERRED_SIZE, 332, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(8, 8, 8)
+                .addComponent(btnAddTodo, javax.swing.GroupLayout.PREFERRED_SIZE, 33, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(31, 31, 31))
         );
 
         tabMain.addTab("캘린더 / 할 일", pnlCalendarTodo);
@@ -533,7 +579,7 @@ public class MainFrame extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(tabMain, javax.swing.GroupLayout.DEFAULT_SIZE, 740, Short.MAX_VALUE)
+            .addComponent(tabMain)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -547,37 +593,34 @@ public class MainFrame extends javax.swing.JFrame {
      * @param args the command line arguments
      */
     public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
         try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
+            // "Nimbus" 부분을 지우고 아래처럼 시스템 기본값으로 설정하세요.
+            javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ex) {
             logger.log(java.util.logging.Level.SEVERE, null, ex);
         }
-        //</editor-fold>
 
-        /* Create and display the form */
         java.awt.EventQueue.invokeLater(() -> new MainFrame().setVisible(true));
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnAddSubject;
+    private javax.swing.JButton btnAddTodo;
     private javax.swing.JButton btnDeleteSubject;
     private javax.swing.JButton btnEditSubject;
+    private com.toedter.calendar.JCalendar jCalendar;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JLabel lblCalendar;
+    private javax.swing.JLabel lblSelectedDate;
     private javax.swing.JLabel lblSubjects;
     private javax.swing.JLabel lblTimetable;
+    private javax.swing.JLabel lblTodoList;
     private javax.swing.JList<String> lstSubjects;
     private javax.swing.JPanel pnlCalendarTodo;
     private javax.swing.JPanel pnlTimetable;
+    private javax.swing.JPanel pnlTodoListContainer;
+    private javax.swing.JScrollPane scrTodoList;
     private javax.swing.JTabbedPane tabMain;
     private javax.swing.JTable tblTimetable;
     // End of variables declaration//GEN-END:variables
