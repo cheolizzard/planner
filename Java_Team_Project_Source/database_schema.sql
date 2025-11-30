@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS todo_list (
     start_datetime VARCHAR(20),
     end_datetime VARCHAR(20),
     is_completed BOOLEAN DEFAULT FALSE,
+    status VARCHAR(10) DEFAULT '미완료' COMMENT '할일 상태: 미완료, 진행중, 완료',
     FOREIGN KEY (student_id) REFERENCES student(student_id) ON DELETE CASCADE,
     FOREIGN KEY (enroll_id) REFERENCES enrollment(enroll_id) ON DELETE SET NULL
 );

@@ -389,5 +389,83 @@ public class CourseDAO {
             if (pstmt != null) pstmt.close();
         }
     }
+    
+    /**
+     * 과목 수정
+     * @param courseId 강의 ID
+     * @param subjectName 과목명
+     * @param professorName 교수명
+     * @param classroom 강의실
+     * @param dayOfWeek 요일
+     * @param startTime 시작 시간
+     * @param endTime 끝 시간
+     * @param credits 학점 (기본 3)
+     * @return 성공 시 true
+     */
+    public boolean updateCourse(int courseId, String subjectName, String professorName, 
+                                String classroom, String dayOfWeek, String startTime, 
+                                String endTime, int credits) throws SQLException {
+        dbManager.beginTransaction();
+        
+        try {
+            // 1. 과목 찾기 또는 생성
+            int subjectId = findOrCreateSubject(subjectName, credits);
+            if (subjectId == -1) {
+                dbManager.rollback();
+                return false;
+            }
+            
+            // 2. 교수 찾기 또는 생성
+            int professorId = findOrCreateProfessor(professorName);
+            if (professorId == -1) {
+                dbManager.rollback();
+                return false;
+            }
+            
+            // 3. 강의 정보 업데이트
+            String courseSql = "UPDATE course SET subject_id = ?, professor_id = ?, classroom = ? WHERE course_id = ?";
+            PreparedStatement pstmt = null;
+            
+            try {
+                pstmt = dbManager.prepareStatement(courseSql);
+                pstmt.setInt(1, subjectId);
+                pstmt.setInt(2, professorId);
+                pstmt.setString(3, classroom);
+                pstmt.setInt(4, courseId);
+                pstmt.executeUpdate();
+            } finally {
+                if (pstmt != null) pstmt.close();
+            }
+            
+            // 4. 기존 강의 시간 삭제
+            String deleteTimeSql = "DELETE FROM lecture_time WHERE course_id = ?";
+            try {
+                pstmt = dbManager.prepareStatement(deleteTimeSql);
+                pstmt.setInt(1, courseId);
+                pstmt.executeUpdate();
+            } finally {
+                if (pstmt != null) pstmt.close();
+            }
+            
+            // 5. 새로운 강의 시간 추가
+            String insertTimeSql = "INSERT INTO lecture_time (course_id, day_of_week, start_time, end_time) VALUES (?, ?, ?, ?)";
+            try {
+                pstmt = dbManager.prepareStatement(insertTimeSql);
+                pstmt.setInt(1, courseId);
+                pstmt.setString(2, dayOfWeek);
+                pstmt.setString(3, startTime);
+                pstmt.setString(4, endTime);
+                pstmt.executeUpdate();
+            } finally {
+                if (pstmt != null) pstmt.close();
+            }
+            
+            dbManager.commit();
+            return true;
+        } catch (SQLException e) {
+            dbManager.rollback();
+            throw e;
+        }
+    }
 }
 

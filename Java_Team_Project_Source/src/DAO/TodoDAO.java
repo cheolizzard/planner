@@ -22,8 +22,8 @@ public class TodoDAO {
      * @return 생성된 할일 ID, 실패 시 -1
      */
     public int addTodo(Todo todo) throws SQLException {
-        String sql = "INSERT INTO todo_list (student_id, enroll_id, custom_category, title, content, start_datetime, end_datetime, is_completed) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO todo_list (student_id, enroll_id, custom_category, title, content, start_datetime, end_datetime, is_completed, status) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         PreparedStatement pstmt = null;
         
@@ -43,6 +43,7 @@ public class TodoDAO {
             pstmt.setString(6, todo.getStartDatetime());
             pstmt.setString(7, todo.getEndDatetime());
             pstmt.setBoolean(8, todo.isCompleted());
+            pstmt.setString(9, todo.getStatus() != null ? todo.getStatus() : "미완료");
             
             int result = pstmt.executeUpdate();
             if (result > 0) {
@@ -64,7 +65,7 @@ public class TodoDAO {
      */
     public boolean updateTodo(Todo todo) throws SQLException {
         String sql = "UPDATE todo_list SET enroll_id = ?, custom_category = ?, title = ?, content = ?, " +
-                     "start_datetime = ?, end_datetime = ?, is_completed = ? " +
+                     "start_datetime = ?, end_datetime = ?, is_completed = ?, status = ? " +
                      "WHERE todo_id = ? AND student_id = ?";
         
         PreparedStatement pstmt = null;
@@ -84,8 +85,9 @@ public class TodoDAO {
             pstmt.setString(5, todo.getStartDatetime());
             pstmt.setString(6, todo.getEndDatetime());
             pstmt.setBoolean(7, todo.isCompleted());
-            pstmt.setInt(8, todo.getTodoId());
-            pstmt.setString(9, todo.getStudentId());
+            pstmt.setString(8, todo.getStatus() != null ? todo.getStatus() : "미완료");
+            pstmt.setInt(9, todo.getTodoId());
+            pstmt.setString(10, todo.getStudentId());
             
             int result = pstmt.executeUpdate();
             return result > 0;
@@ -116,13 +118,32 @@ public class TodoDAO {
     }
     
     /**
+     * enroll_id로 연결된 모든 할일 삭제 (과목 삭제 시 사용)
+     * @param enrollId 수강신청 ID
+     * @return 삭제된 할일 개수
+     */
+    public int deleteTodosByEnrollId(int enrollId) throws SQLException {
+        String sql = "DELETE FROM todo_list WHERE enroll_id = ?";
+        PreparedStatement pstmt = null;
+        
+        try {
+            pstmt = dbManager.prepareStatement(sql);
+            pstmt.setInt(1, enrollId);
+            int result = pstmt.executeUpdate();
+            return result;
+        } finally {
+            if (pstmt != null) pstmt.close();
+        }
+    }
+    
+    /**
      * 학생의 모든 할일 조회
      * @param studentId 학번
      * @return 할일 목록
      */
     public List<Todo> getTodosByStudentId(String studentId) throws SQLException {
         String sql = "SELECT t.todo_id, t.student_id, t.enroll_id, t.custom_category, t.title, t.content, " +
-                     "t.start_datetime, t.end_datetime, t.is_completed, " +
+                     "t.start_datetime, t.end_datetime, t.is_completed, t.status, " +
                      "COALESCE(s.subject_name, t.custom_category, '기타') as category_name " +
                      "FROM todo_list t " +
                      "LEFT JOIN enrollment e ON t.enroll_id = e.enroll_id " +
@@ -160,7 +181,7 @@ public class TodoDAO {
      */
     public List<Todo> getTodosByDate(String studentId, String date) throws SQLException {
         String sql = "SELECT t.todo_id, t.student_id, t.enroll_id, t.custom_category, t.title, t.content, " +
-                     "t.start_datetime, t.end_datetime, t.is_completed, " +
+                     "t.start_datetime, t.end_datetime, t.is_completed, t.status, " +
                      "COALESCE(s.subject_name, t.custom_category, '기타') as category_name " +
                      "FROM todo_list t " +
                      "LEFT JOIN enrollment e ON t.enroll_id = e.enroll_id " +
@@ -204,7 +225,7 @@ public class TodoDAO {
      */
     public List<Todo> getTodosByCategory(String studentId, Integer enrollId, String customCategory) throws SQLException {
         String sql = "SELECT t.todo_id, t.student_id, t.enroll_id, t.custom_category, t.title, t.content, " +
-                     "t.start_datetime, t.end_datetime, t.is_completed, " +
+                     "t.start_datetime, t.end_datetime, t.is_completed, t.status, " +
                      "COALESCE(s.subject_name, t.custom_category, '기타') as category_name " +
                      "FROM todo_list t " +
                      "LEFT JOIN enrollment e ON t.enroll_id = e.enroll_id " +
@@ -256,7 +277,7 @@ public class TodoDAO {
      */
     public Todo getTodoById(int todoId, String studentId) throws SQLException {
         String sql = "SELECT t.todo_id, t.student_id, t.enroll_id, t.custom_category, t.title, t.content, " +
-                     "t.start_datetime, t.end_datetime, t.is_completed, " +
+                     "t.start_datetime, t.end_datetime, t.is_completed, t.status, " +
                      "COALESCE(s.subject_name, t.custom_category, '기타') as category_name " +
                      "FROM todo_list t " +
                      "LEFT JOIN enrollment e ON t.enroll_id = e.enroll_id " +
@@ -291,14 +312,27 @@ public class TodoDAO {
      * @return 성공 시 true
      */
     public boolean updateCompletionStatus(int todoId, String studentId, boolean isCompleted) throws SQLException {
-        String sql = "UPDATE todo_list SET is_completed = ? WHERE todo_id = ? AND student_id = ?";
+        String status = isCompleted ? "완료" : "미완료";
+        return updateStatus(todoId, studentId, status);
+    }
+    
+    /**
+     * 상태 업데이트
+     * @param todoId 할일 ID
+     * @param studentId 학번
+     * @param status 상태 (미완료, 진행중, 완료)
+     * @return 성공 시 true
+     */
+    public boolean updateStatus(int todoId, String studentId, String status) throws SQLException {
+        String sql = "UPDATE todo_list SET status = ?, is_completed = ? WHERE todo_id = ? AND student_id = ?";
         PreparedStatement pstmt = null;
         
         try {
             pstmt = dbManager.prepareStatement(sql);
-            pstmt.setBoolean(1, isCompleted);
-            pstmt.setInt(2, todoId);
-            pstmt.setString(3, studentId);
+            pstmt.setString(1, status);
+            pstmt.setBoolean(2, "완료".equals(status));
+            pstmt.setInt(3, todoId);
+            pstmt.setString(4, studentId);
             int result = pstmt.executeUpdate();
             return result > 0;
         } finally {
@@ -325,9 +359,48 @@ public class TodoDAO {
         todo.setStartDatetime(rs.getString("start_datetime"));
         todo.setEndDatetime(rs.getString("end_datetime"));
         todo.setCompleted(rs.getBoolean("is_completed"));
+        todo.setStatus(rs.getString("status"));
         todo.setCategoryName(rs.getString("category_name"));
         
         return todo;
+    }
+    
+    /**
+     * 학생의 사용자 정의 카테고리 목록 조회
+     * @param studentId 학번
+     * @return 사용자 정의 카테고리 목록 (중복 제거)
+     */
+    public List<String> getCustomCategories(String studentId) throws SQLException {
+        String sql = "SELECT DISTINCT custom_category " +
+                     "FROM todo_list " +
+                     "WHERE student_id = ? " +
+                     "AND enroll_id IS NULL " +
+                     "AND custom_category IS NOT NULL " +
+                     "AND custom_category != '' " +
+                     "AND custom_category != '기타' " +
+                     "ORDER BY custom_category";
+        
+        List<String> categories = new ArrayList<>();
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        
+        try {
+            pstmt = dbManager.prepareStatement(sql);
+            pstmt.setString(1, studentId);
+            rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                String category = rs.getString("custom_category");
+                if (category != null && !category.isEmpty()) {
+                    categories.add(category);
+                }
+            }
+        } finally {
+            if (rs != null) rs.close();
+            if (pstmt != null) pstmt.close();
+        }
+        
+        return categories;
     }
 }
 
