@@ -12,4 +12,7 @@ public interface TodoActionCallback {
     // 삭제 버튼이 눌렸을 때 호출할 메서드
     void onDelete(int todoId);
     
+    // 상태가 변경되었을 때 호출할 메서드
+    void onStatusChange(int todoId, String newStatus);
+    
 }

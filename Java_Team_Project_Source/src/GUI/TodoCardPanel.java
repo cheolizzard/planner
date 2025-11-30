@@ -23,19 +23,41 @@ public class TodoCardPanel extends javax.swing.JPanel {
         // 화면에 데이터 뿌리기
         // 제목: [카테고리] 할일제목
         String category = todo.getDisplayCategory(); 
-        lblTitle.setText("[" + category + "] " + todo.getTitle());
+        String fullTitle = "[" + category + "] " + todo.getTitle();
+        // 제목이 너무 길면 자르기 (버튼 공간 확보)
+        if (fullTitle.length() > 30) {
+            fullTitle = fullTitle.substring(0, 30) + "...";
+        }
+        lblTitle.setText(fullTitle);
 
         // 시간: 시작 ~ 끝
         String timeText = formatTime(todo.getStartDatetime(), todo.getEndDatetime());
         lblTime.setText(timeText);
 
-        // 스타일 설정 (완료된 일은 회색 배경)
-        if (todo.isCompleted()) {
-            this.setBackground(new Color(245, 245, 245)); // 연한 회색
-            lblTitle.setForeground(Color.GRAY);
-        } else {
-            this.setBackground(Color.WHITE); // 흰색
-            lblTitle.setForeground(Color.BLACK);
+        // 상태 표시
+        String status = todo.getStatus();
+        if (status == null || status.isEmpty()) {
+            status = "미완료";
+        }
+        lblStatus.setText(status);
+        
+        // 상태별 색상 설정
+        switch (status) {
+            case "완료":
+                lblStatus.setForeground(new Color(76, 175, 80)); // 초록색
+                this.setBackground(new Color(245, 245, 245)); // 연한 회색
+                lblTitle.setForeground(Color.GRAY);
+                break;
+            case "진행중":
+                lblStatus.setForeground(new Color(255, 152, 0)); // 주황색
+                this.setBackground(Color.WHITE);
+                lblTitle.setForeground(Color.BLACK);
+                break;
+            default: // 미완료
+                lblStatus.setForeground(new Color(158, 158, 158)); // 회색
+                this.setBackground(Color.WHITE);
+                lblTitle.setForeground(Color.BLACK);
+                break;
         }
 
         // 패널 크기 고정 (리스트 모양 유지용)
@@ -87,6 +109,7 @@ public class TodoCardPanel extends javax.swing.JPanel {
 
         lblTitle = new javax.swing.JLabel();
         lblTime = new javax.swing.JLabel();
+        lblStatus = new javax.swing.JLabel();
         btnEdit = new javax.swing.JButton();
         btnDelete = new javax.swing.JButton();
 
@@ -96,11 +119,19 @@ public class TodoCardPanel extends javax.swing.JPanel {
 
         lblTitle.setFont(new java.awt.Font("맑은 고딕", 1, 14)); // NOI18N
         lblTitle.setText("할일");
-        lblTitle.setMaximumSize(new java.awt.Dimension(320, 20));
 
         lblTime.setFont(new java.awt.Font("맑은 고딕", 0, 10)); // NOI18N
         lblTime.setForeground(new java.awt.Color(51, 51, 51));
         lblTime.setText("시간");
+
+        lblStatus.setFont(new java.awt.Font("맑은 고딕", 0, 11)); // NOI18N
+        lblStatus.setText("상태");
+        lblStatus.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        lblStatus.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                lblStatusMouseClicked(evt);
+            }
+        });
 
         btnEdit.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         btnEdit.setText("수정");
@@ -125,9 +156,12 @@ public class TodoCardPanel extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(lblTitle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(lblTime))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 119, Short.MAX_VALUE)
+                    .addComponent(lblTitle)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(lblTime)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(lblStatus)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(btnEdit, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnDelete, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -139,9 +173,11 @@ public class TodoCardPanel extends javax.swing.JPanel {
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                        .addComponent(lblTitle, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(lblTitle)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(lblTime))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(lblTime)
+                            .addComponent(lblStatus)))
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
                         .addGap(7, 7, 7)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -163,10 +199,36 @@ public class TodoCardPanel extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_btnDeleteActionPerformed
 
+    private void lblStatusMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_lblStatusMouseClicked
+        // 상태 변경: 미완료 -> 진행중 -> 완료 -> 미완료...
+        String currentStatus = lblStatus.getText();
+        String newStatus;
+        
+        switch (currentStatus) {
+            case "미완료":
+                newStatus = "진행중";
+                break;
+            case "진행중":
+                newStatus = "완료";
+                break;
+            case "완료":
+                newStatus = "미완료";
+                break;
+            default:
+                newStatus = "미완료";
+                break;
+        }
+        
+        if (callback != null) {
+            callback.onStatusChange(todoId, newStatus);
+        }
+    }//GEN-LAST:event_lblStatusMouseClicked
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnDelete;
     private javax.swing.JButton btnEdit;
+    private javax.swing.JLabel lblStatus;
     private javax.swing.JLabel lblTime;
     private javax.swing.JLabel lblTitle;
     // End of variables declaration//GEN-END:variables

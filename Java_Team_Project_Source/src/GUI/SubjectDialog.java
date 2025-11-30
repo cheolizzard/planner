@@ -106,9 +106,14 @@ public class SubjectDialog extends javax.swing.JDialog {
         cboStartTime.setModel(new javax.swing.DefaultComboBoxModel<>(times));
         cboEndTime.setModel(new javax.swing.DefaultComboBoxModel<>(times));
         
+        // 요일 콤보박스 설정
+        String[] days = {"월", "화", "수", "목", "금"};
+        cboDayOfWeek.setModel(new javax.swing.DefaultComboBoxModel<>(days));
+        
         // 기본값 설정
         cboStartTime.setSelectedIndex(0); // 09:00
         cboEndTime.setSelectedIndex(6);  // 12:00
+        cboDayOfWeek.setSelectedIndex(0); // 월요일
     }
     
     /**
@@ -124,6 +129,7 @@ public class SubjectDialog extends javax.swing.JDialog {
             var times = courseDAO.getLectureTimesByCourseId(editCourse.getCourseId());
             if (!times.isEmpty()) {
                 var time = times.get(0); // 첫 번째 시간만 표시 (간단화)
+                cboDayOfWeek.setSelectedItem(time.getDayOfWeek());
                 cboStartTime.setSelectedItem(time.getStartTime());
                 cboEndTime.setSelectedItem(time.getEndTime());
             }
@@ -166,17 +172,47 @@ public class SubjectDialog extends javax.swing.JDialog {
             return;
         }
         
-        // 요일은 일단 "월"로 고정 (나중에 개선)
-        String dayOfWeek = "월";
+        String dayOfWeek = (String) cboDayOfWeek.getSelectedItem();
+        if (dayOfWeek == null) {
+            JOptionPane.showMessageDialog(this, "요일을 선택하세요.", "입력 오류", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         
         try {
             if (isEditMode) {
-                // 수정 모드 - 일단 삭제 후 재추가 (간단화)
-                // TODO: 실제 수정 로직 구현
-                JOptionPane.showMessageDialog(this, 
-                    "과목 수정 기능은 현재 개발 중입니다.", 
-                    "알림", 
-                    JOptionPane.INFORMATION_MESSAGE);
+                // 수정 모드
+                // 시간 겹침 검사 (현재 수정 중인 과목 제외)
+                if (courseDAO.hasTimeConflict(studentId, dayOfWeek, startTime, endTime, editCourse.getCourseId())) {
+                    JOptionPane.showMessageDialog(this, 
+                        "해당 시간에 이미 수강 중인 과목이 있습니다.", 
+                        "시간 겹침", 
+                        JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                
+                // 과목 수정
+                boolean success = courseDAO.updateCourse(
+                    editCourse.getCourseId(), 
+                    subjectName, 
+                    professorName, 
+                    classroom, 
+                    dayOfWeek, 
+                    startTime, 
+                    endTime, 
+                    3);
+                
+                if (success) {
+                    JOptionPane.showMessageDialog(this, 
+                        subjectName + " 과목이 수정되었습니다.", 
+                        "수정 완료", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, 
+                        "과목 수정에 실패했습니다.", 
+                        "오류", 
+                        JOptionPane.ERROR_MESSAGE);
+                }
             } else {
                 // 추가 모드
                 // 시간 겹침 검사
@@ -237,6 +273,7 @@ public class SubjectDialog extends javax.swing.JDialog {
         lalSubjectName = new javax.swing.JLabel();
         lblProfessor = new javax.swing.JLabel();
         lblClassroom = new javax.swing.JLabel();
+        lblDayOfWeek = new javax.swing.JLabel();
         lblStartTime = new javax.swing.JLabel();
         lblEndTime = new javax.swing.JLabel();
         txtSubjectName = new javax.swing.JTextField();
@@ -244,6 +281,7 @@ public class SubjectDialog extends javax.swing.JDialog {
         txtClassroom = new javax.swing.JTextField();
         btnSaveProject = new javax.swing.JButton();
         btnCancelSubject = new javax.swing.JButton();
+        cboDayOfWeek = new javax.swing.JComboBox<>();
         cboStartTime = new javax.swing.JComboBox<>();
         cboEndTime = new javax.swing.JComboBox<>();
 
@@ -257,6 +295,9 @@ public class SubjectDialog extends javax.swing.JDialog {
 
         lblClassroom.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         lblClassroom.setText("강의실:");
+
+        lblDayOfWeek.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+        lblDayOfWeek.setText("요일:");
 
         lblStartTime.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         lblStartTime.setText("시작 시간:");
@@ -276,6 +317,8 @@ public class SubjectDialog extends javax.swing.JDialog {
         btnCancelSubject.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         btnCancelSubject.setText("취소");
 
+        cboDayOfWeek.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+
         cboStartTime.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
 
         cboEndTime.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
@@ -289,6 +332,7 @@ public class SubjectDialog extends javax.swing.JDialog {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(lblEndTime)
                     .addComponent(lblStartTime)
+                    .addComponent(lblDayOfWeek)
                     .addComponent(lblClassroom)
                     .addComponent(lblProfessor)
                     .addComponent(lalSubjectName))
@@ -297,6 +341,7 @@ public class SubjectDialog extends javax.swing.JDialog {
                     .addComponent(txtSubjectName)
                     .addComponent(txtProfessor)
                     .addComponent(txtClassroom)
+                    .addComponent(cboDayOfWeek, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(cboStartTime, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(cboEndTime, 0, 270, Short.MAX_VALUE))
                 .addGap(20, 20, 20))
@@ -322,6 +367,10 @@ public class SubjectDialog extends javax.swing.JDialog {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lblClassroom)
                     .addComponent(txtClassroom, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblDayOfWeek)
+                    .addComponent(cboDayOfWeek, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblStartTime)
@@ -380,10 +429,12 @@ public class SubjectDialog extends javax.swing.JDialog {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnCancelSubject;
     private javax.swing.JButton btnSaveProject;
+    private javax.swing.JComboBox<String> cboDayOfWeek;
     private javax.swing.JComboBox<String> cboEndTime;
     private javax.swing.JComboBox<String> cboStartTime;
     private javax.swing.JLabel lalSubjectName;
     private javax.swing.JLabel lblClassroom;
+    private javax.swing.JLabel lblDayOfWeek;
     private javax.swing.JLabel lblEndTime;
     private javax.swing.JLabel lblProfessor;
     private javax.swing.JLabel lblStartTime;

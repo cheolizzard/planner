@@ -29,6 +29,7 @@ public class TodoDialog extends javax.swing.JDialog {
     private String studentId;
     private Todo editTodo; // 수정 모드일 때 사용
     private boolean isEditMode;
+    private String selectedDate; // 추가 모드일 때 선택된 날짜
 
     /**
      * Creates new form TodoDialog (테스트용 기본 생성자)
@@ -41,10 +42,18 @@ public class TodoDialog extends javax.swing.JDialog {
      * Creates new form TodoDialog (추가 모드)
      */
     public TodoDialog(java.awt.Frame parent, boolean modal, String studentId, Todo editTodo) {
+        this(parent, modal, studentId, editTodo, null);
+    }
+    
+    /**
+     * Creates new form TodoDialog (추가 모드 - 날짜 지정)
+     */
+    public TodoDialog(java.awt.Frame parent, boolean modal, String studentId, Todo editTodo, String selectedDate) {
         super(parent, modal);
         this.studentId = studentId;
         this.editTodo = editTodo;
         this.isEditMode = (editTodo != null);
+        this.selectedDate = selectedDate;
         this.todoDAO = new TodoDAO();
         this.enrollmentDAO = new EnrollmentDAO();
         initComponents();
@@ -83,6 +92,10 @@ public class TodoDialog extends javax.swing.JDialog {
         }
         cboTodoStartTime.setModel(new javax.swing.DefaultComboBoxModel<>(times));
         cboTodoEndTime.setModel(new javax.swing.DefaultComboBoxModel<>(times));
+        
+        // 상태 콤보박스 설정
+        String[] statuses = {"미완료", "진행중", "완료"};
+        cboStatus.setModel(new javax.swing.DefaultComboBoxModel<>(statuses));
     }
     
     /**
@@ -131,6 +144,13 @@ public class TodoDialog extends javax.swing.JDialog {
                 break;
             }
         }
+        
+        // 상태 설정
+        String status = editTodo.getStatus();
+        if (status == null || status.isEmpty()) {
+            status = "미완료";
+        }
+        cboStatus.setSelectedItem(status);
     }
     
     /**
@@ -174,16 +194,25 @@ public class TodoDialog extends javax.swing.JDialog {
                 todo.setCustomCategory("기타");
             }
             
-            // 시간 설정 (간단화 - 오늘 날짜로 설정)
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String today = dateFormat.format(new Date());
+            // 시간 설정 (선택된 날짜 또는 오늘 날짜)
+            String dateToUse;
+            if (selectedDate != null && !selectedDate.isEmpty()) {
+                dateToUse = selectedDate;
+            } else {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                dateToUse = dateFormat.format(new Date());
+            }
             
-            if (startTime != null) {
-                todo.setStartDatetime(today + " " + startTime + ":00");
+            if (startTime != null && !startTime.isEmpty()) {
+                todo.setStartDatetime(dateToUse + " " + startTime + ":00");
             }
-            if (endTime != null) {
-                todo.setEndDatetime(today + " " + endTime + ":00");
+            if (endTime != null && !endTime.isEmpty()) {
+                todo.setEndDatetime(dateToUse + " " + endTime + ":00");
             }
+            
+            // 상태 설정
+            String status = (String) cboStatus.getSelectedItem();
+            todo.setStatus(status != null ? status : "미완료");
             
             if (isEditMode) {
                 // 수정 모드
@@ -293,10 +322,12 @@ public class TodoDialog extends javax.swing.JDialog {
         lblTodoStartTime = new javax.swing.JLabel();
         lblTodoEndTime = new javax.swing.JLabel();
         lblCategory = new javax.swing.JLabel();
+        lblStatus = new javax.swing.JLabel();
         txtTodoTitle = new javax.swing.JTextField();
         cboTodoEndTime = new javax.swing.JComboBox<>();
         cboTodoStartTime = new javax.swing.JComboBox<>();
         cboCategory = new javax.swing.JComboBox<>();
+        cboStatus = new javax.swing.JComboBox<>();
         btnAddCategory = new javax.swing.JButton();
         btnSaveTodo = new javax.swing.JButton();
         btnCancelTodo = new javax.swing.JButton();
@@ -329,6 +360,11 @@ public class TodoDialog extends javax.swing.JDialog {
         lblCategory.setText("카테고리:");
         lblCategory.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
 
+        lblStatus.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+        lblStatus.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        lblStatus.setText("상태:");
+        lblStatus.setVerticalAlignment(javax.swing.SwingConstants.BOTTOM);
+
         txtTodoTitle.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
 
         cboTodoEndTime.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
@@ -336,6 +372,8 @@ public class TodoDialog extends javax.swing.JDialog {
         cboTodoStartTime.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
 
         cboCategory.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+
+        cboStatus.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
 
         btnAddCategory.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         btnAddCategory.setText("+추가");
@@ -361,7 +399,8 @@ public class TodoDialog extends javax.swing.JDialog {
                     .addComponent(lblTodoContent)
                     .addComponent(lblTodoStartTime)
                     .addComponent(lblTodoEndTime)
-                    .addComponent(lblCategory))
+                    .addComponent(lblCategory)
+                    .addComponent(lblStatus))
                 .addGap(27, 27, 27)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(txtTodoTitle)
@@ -371,7 +410,8 @@ public class TodoDialog extends javax.swing.JDialog {
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(cboCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 160, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(btnAddCategory)))
+                        .addComponent(btnAddCategory))
+                    .addComponent(cboStatus, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap(20, Short.MAX_VALUE))
             .addGroup(layout.createSequentialGroup()
                 .addGap(76, 76, 76)
@@ -404,6 +444,10 @@ public class TodoDialog extends javax.swing.JDialog {
                     .addComponent(cboCategory, javax.swing.GroupLayout.PREFERRED_SIZE, 26, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnAddCategory)
                     .addComponent(lblCategory))
+                .addGap(18, 18, 18)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(cboStatus, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(lblStatus))
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnCancelTodo, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -456,9 +500,11 @@ public class TodoDialog extends javax.swing.JDialog {
     private javax.swing.JButton btnCancelTodo;
     private javax.swing.JButton btnSaveTodo;
     private javax.swing.JComboBox<String> cboCategory;
+    private javax.swing.JComboBox<String> cboStatus;
     private javax.swing.JComboBox<String> cboTodoEndTime;
     private javax.swing.JComboBox<String> cboTodoStartTime;
     private javax.swing.JLabel lblCategory;
+    private javax.swing.JLabel lblStatus;
     private javax.swing.JLabel lblTodoContent;
     private javax.swing.JLabel lblTodoEndTime;
     private javax.swing.JLabel lblTodoStartTime;

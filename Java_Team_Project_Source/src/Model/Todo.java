@@ -13,6 +13,7 @@ public class Todo {
     private String startDatetime;  // 시작 시간 (NULL 가능)
     private String endDatetime;    // 끝 시간 (NULL 가능)
     private boolean isCompleted;   // 완료 여부
+    private String status;         // 할일 상태 (미완료, 진행중, 완료)
     
     // 조회용 필드
     private String categoryName;   // 카테고리명 (과목명 또는 사용자 정의 카테고리)
@@ -30,6 +31,7 @@ public class Todo {
         this.startDatetime = startDatetime;
         this.endDatetime = endDatetime;
         this.isCompleted = false;
+        this.status = "미완료";
     }
     
     // Getters and Setters
@@ -103,6 +105,22 @@ public class Todo {
     
     public void setCompleted(boolean completed) {
         isCompleted = completed;
+        // isCompleted가 변경되면 status도 업데이트
+        if (completed && (status == null || !status.equals("완료"))) {
+            this.status = "완료";
+        }
+    }
+    
+    public String getStatus() {
+        return status;
+    }
+    
+    public void setStatus(String status) {
+        this.status = status;
+        // status가 '완료'로 변경되면 isCompleted도 true
+        if ("완료".equals(status)) {
+            this.isCompleted = true;
+        }
     }
     
     public String getCategoryName() {

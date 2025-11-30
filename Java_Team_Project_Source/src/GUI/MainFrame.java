@@ -176,6 +176,25 @@ public class MainFrame extends javax.swing.JFrame {
             model.addElement(course.getSubjectName() + " - " + course.getProfessorName());
         }
         lstSubjects.setModel(model);
+        
+        // 사용자 카테고리 목록도 업데이트
+        updateCategoryList();
+    }
+    
+    /**
+     * 사용자 카테고리 목록 업데이트
+     */
+    private void updateCategoryList() {
+        try {
+            List<String> categories = todoDAO.getCustomCategories(currentStudent.getStudentId());
+            DefaultListModel<String> model = new DefaultListModel<>();
+            for (String category : categories) {
+                model.addElement(category);
+            }
+            lstCategories.setModel(model);
+        } catch (SQLException e) {
+            logger.log(java.util.logging.Level.SEVERE, "카테고리 목록 로드 실패", e);
+        }
     }
     
     /**
@@ -247,21 +266,32 @@ public class MainFrame extends javax.swing.JFrame {
         
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                // enrollment 삭제 (CASCADE로 course, lecture_time도 삭제됨)
                 // 먼저 enroll_id 찾기
                 var enrollments = enrollmentDAO.getEnrollmentsByStudentId(currentStudent.getStudentId());
+                int enrollIdToDelete = -1;
                 for (var enrollment : enrollments) {
                     if (enrollment.getCourseId() == selectedCourse.getCourseId()) {
-                        enrollmentDAO.deleteEnrollment(enrollment.getEnrollId());
+                        enrollIdToDelete = enrollment.getEnrollId();
                         break;
                     }
                 }
                 
-                JOptionPane.showMessageDialog(this, 
-                    selectedCourse.getSubjectName() + " 과목이 삭제되었습니다.", 
-                    "삭제 완료", 
-                    JOptionPane.INFORMATION_MESSAGE);
-                loadCourseList();
+                if (enrollIdToDelete > 0) {
+                    // 1. 해당 과목의 모든 할 일 삭제 (명세서 요구사항)
+                    todoDAO.deleteTodosByEnrollId(enrollIdToDelete);
+                    
+                    // 2. enrollment 삭제 (CASCADE로 course, lecture_time도 삭제됨)
+                    enrollmentDAO.deleteEnrollment(enrollIdToDelete);
+                    
+                    JOptionPane.showMessageDialog(this, 
+                        selectedCourse.getSubjectName() + " 과목이 삭제되었습니다.", 
+                        "삭제 완료", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                    
+        loadCourseList();
+        loadTodoList();
+        updateCategoryList(); // 할 일 목록도 새로고침
+                }
             } catch (SQLException e) {
                 logger.log(java.util.logging.Level.SEVERE, "과목 삭제 실패", e);
                 JOptionPane.showMessageDialog(this, 
@@ -312,6 +342,12 @@ public class MainFrame extends javax.swing.JFrame {
                 // 삭제 로직
                 handleDeleteTodoById(todoId);
             }
+            
+            @Override
+            public void onStatusChange(int todoId, String newStatus) {
+                // 상태 변경 로직
+                handleStatusChange(todoId, newStatus);
+            }
         };
 
         if (todoList != null) {
@@ -343,11 +379,38 @@ public class MainFrame extends javax.swing.JFrame {
                 pnlTodoListContainer.add(javax.swing.Box.createVerticalStrut(20));
                 pnlTodoListContainer.add(lblEmpty);
             }
+            
+            // 카테고리 목록도 업데이트
+            updateCategoryList();
         }
         
         pnlTodoListContainer.revalidate();
         pnlTodoListContainer.repaint();
     }
+    /**
+     * 할일 상태 변경 처리
+     */
+    private void handleStatusChange(int todoId, String newStatus) {
+        try {
+            boolean success = todoDAO.updateStatus(todoId, currentStudent.getStudentId(), newStatus);
+            
+            if (success) {
+                loadTodoList(); // 목록 새로고침
+            } else {
+                JOptionPane.showMessageDialog(this, 
+                    "상태 변경에 실패했습니다.", 
+                    "오류", 
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException e) {
+            logger.log(java.util.logging.Level.SEVERE, "상태 변경 실패", e);
+            JOptionPane.showMessageDialog(this, 
+                "상태 변경 중 오류가 발생했습니다.", 
+                "오류", 
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     /**
      * ID를 이용해 할일 삭제 처리
      */
@@ -394,8 +457,13 @@ public class MainFrame extends javax.swing.JFrame {
      * 할일 추가 버튼 처리
      */
     private void handleAddTodo() {
-        // 추가 모드로 다이얼로그 열기 (Todo 객체 null)
-        TodoDialog dialog = new TodoDialog(this, true, currentStudent.getStudentId(), null);
+        // 캘린더에서 선택된 날짜 가져오기
+        Date selectedDate = jCalendar.getDate();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        String dateStr = sdf.format(selectedDate);
+        
+        // 추가 모드로 다이얼로그 열기 (선택된 날짜 전달)
+        TodoDialog dialog = new TodoDialog(this, true, currentStudent.getStudentId(), null, dateStr);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
         loadTodoList();
@@ -458,6 +526,15 @@ public class MainFrame extends javax.swing.JFrame {
         lstSubjects.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         jScrollPane1.setViewportView(lstSubjects);
 
+        lblCategories = new javax.swing.JLabel();
+        lblCategories.setFont(new java.awt.Font("맑은 고딕", 1, 14)); // NOI18N
+        lblCategories.setText("사용자 카테고리");
+
+        lstCategories = new javax.swing.JList<>();
+        lstCategories.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+        jScrollPane2 = new javax.swing.JScrollPane();
+        jScrollPane2.setViewportView(lstCategories);
+
         btnDeleteSubject.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         btnDeleteSubject.setText("삭제");
 
@@ -478,7 +555,9 @@ public class MainFrame extends javax.swing.JFrame {
                         .addComponent(lblTimetable)
                         .addComponent(lblSubjects)
                         .addComponent(tblTimetable, javax.swing.GroupLayout.DEFAULT_SIZE, 700, Short.MAX_VALUE)
-                        .addComponent(jScrollPane1))
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 150, Short.MAX_VALUE)
+                        .addComponent(lblCategories)
+                        .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 150, Short.MAX_VALUE))
                     .addGroup(pnlTimetableLayout.createSequentialGroup()
                         .addComponent(btnAddSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(18, 18, 18)
@@ -497,7 +576,11 @@ public class MainFrame extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(lblSubjects)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 225, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(lblCategories)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(pnlTimetableLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnDeleteSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -610,13 +693,16 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JButton btnEditSubject;
     private com.toedter.calendar.JCalendar jCalendar;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JLabel lblCalendar;
+    private javax.swing.JLabel lblCategories;
     private javax.swing.JLabel lblSelectedDate;
     private javax.swing.JLabel lblSubjects;
     private javax.swing.JLabel lblTimetable;
     private javax.swing.JLabel lblTodoList;
     private javax.swing.JList<String> lstSubjects;
+    private javax.swing.JList<String> lstCategories;
     private javax.swing.JPanel pnlCalendarTodo;
     private javax.swing.JPanel pnlTimetable;
     private javax.swing.JPanel pnlTodoListContainer;
