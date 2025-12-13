@@ -92,27 +92,59 @@ public class SubjectDialog extends javax.swing.JDialog {
     }
     
     /**
-     * 시간 콤보박스 설정
+     * 시간 콤보박스 설정 (교시 단위)
      */
     private void setupTimeComboBoxes() {
-        // 시간: 09:00 ~ 18:00 (30분 단위)
-        String[] times = new String[19];
-        for (int i = 0; i < 19; i++) {
-            int hour = 9 + i / 2;
-            int minute = (i % 2) * 30;
-            times[i] = String.format("%02d:%02d", hour, minute);
-        }
+        // 교시별 시작 시간 (1~16교시)
+        String[] periodStartTimes = {
+            "09:00",  // 1교시
+            "09:55",  // 2교시
+            "10:50",  // 3교시
+            "11:45",  // 4교시
+            "12:40",  // 5교시
+            "13:35",  // 6교시
+            "14:30",  // 7교시
+            "15:25",  // 8교시
+            "16:20",  // 9교시
+            "17:15",  // 10교시
+            "18:10",  // 11교시
+            "19:05",  // 12교시
+            "20:00",  // 13교시
+            "20:50",  // 14교시
+            "21:40",  // 15교시
+            "22:30"   // 16교시
+        };
         
-        cboStartTime.setModel(new javax.swing.DefaultComboBoxModel<>(times));
-        cboEndTime.setModel(new javax.swing.DefaultComboBoxModel<>(times));
+        // 교시별 끝 시간 (1~16교시)
+        String[] periodEndTimes = {
+            "09:50",  // 1교시
+            "10:45",  // 2교시
+            "11:40",  // 3교시
+            "12:35",  // 4교시
+            "13:30",  // 5교시
+            "14:25",  // 6교시
+            "15:20",  // 7교시
+            "16:15",  // 8교시
+            "17:10",  // 9교시
+            "18:05",  // 10교시
+            "19:00",  // 11교시
+            "19:55",  // 12교시
+            "20:45",  // 13교시
+            "21:35",  // 14교시
+            "22:25",  // 15교시
+            "23:15"   // 16교시
+        };
+        
+        cboStartTime.setModel(new javax.swing.DefaultComboBoxModel<>(periodStartTimes));
+        cboEndTime.setModel(new javax.swing.DefaultComboBoxModel<>(periodEndTimes));
         
         // 요일 콤보박스 설정
-        String[] days = {"월", "화", "수", "목", "금"};
+        String[] days = {"월", "화", "수", "목", "금", "토"};
         cboDayOfWeek.setModel(new javax.swing.DefaultComboBoxModel<>(days));
         
-        // 기본값 설정
-        cboStartTime.setSelectedIndex(0); // 09:00
-        cboEndTime.setSelectedIndex(6);  // 12:00
+        // 기본값 설정 (1교시 시작, 1교시 끝)
+        cboStartTime.setSelectedIndex(0); // 1교시 시작 (09:00)
+        cboEndTime.setSelectedIndex(0);   // 1교시 끝 (09:50)
         cboDayOfWeek.setSelectedIndex(0); // 월요일
     }
     
