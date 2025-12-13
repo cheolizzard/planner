@@ -5,18 +5,26 @@ import DAO.EnrollmentDAO;
 import DAO.TodoDAO;
 import DB.DB_MAN;
 import Model.Course;
+import Model.LectureTime;
 import Model.Student;
+import Model.TimetableCellData;
 import Model.Todo;
 import Util.UIHelper;
 import java.awt.Color;
+import java.awt.Component;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
+import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
@@ -201,16 +209,257 @@ public class MainFrame extends javax.swing.JFrame {
      * 시간표 업데이트
      */
     private void updateTimetable() {
-        // 시간표 테이블 모델 설정
-        String[] columns = {"시간", "월", "화", "수", "목", "금"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0);
+        try {
+            // 교시별 시간 매핑 (1~16교시)
+            String[] periodTimes = {
+                "1\n(09:00~09:50)",
+                "2\n(09:55~10:45)",
+                "3\n(10:50~11:40)",
+                "4\n(11:45~12:35)",
+                "5\n(12:40~13:30)",
+                "6\n(13:35~14:25)",
+                "7\n(14:30~15:20)",
+                "8\n(15:25~16:15)",
+                "9\n(16:20~17:10)",
+                "10\n(17:15~18:05)",
+                "11\n(18:10~19:00)",
+                "12\n(19:05~19:55)",
+                "13\n(20:00~20:45)",
+                "14\n(20:50~21:35)",
+                "15\n(21:40~22:25)",
+                "16\n(22:30~23:15)"
+            };
+            
+            // 교시별 시작/끝 시간
+            String[] periodStartTimes = {"09:00", "09:55", "10:50", "11:45", "12:40", "13:35", "14:30", "15:25", "16:20", "17:15", "18:10", "19:05", "20:00", "20:50", "21:40", "22:30"};
+            String[] periodEndTimes = {"09:50", "10:45", "11:40", "12:35", "13:30", "14:25", "15:20", "16:15", "17:10", "18:05", "19:00", "19:55", "20:45", "21:35", "22:25", "23:15"};
+            
+            // 요일 매핑
+            String[] dayNames = {"월", "화", "수", "목", "금", "토"};
+            Map<String, Integer> dayIndexMap = new HashMap<>();
+            dayIndexMap.put("월", 0);
+            dayIndexMap.put("화", 1);
+            dayIndexMap.put("수", 2);
+            dayIndexMap.put("목", 3);
+            dayIndexMap.put("금", 4);
+            dayIndexMap.put("토", 5);
+            
+            // 시간표 테이블 모델 설정
+            String[] columns = new String[dayNames.length + 1];
+            columns[0] = "교시";
+            System.arraycopy(dayNames, 0, columns, 1, dayNames.length);
+            
+            // 각 셀의 데이터를 저장할 2D 배열
+            TimetableCellData[][] cellData = new TimetableCellData[periodTimes.length][dayNames.length];
+            
+            // 디버깅: 과목 목록 확인
+            System.out.println("=== 시간표 업데이트 시작 ===");
+            System.out.println("총 과목 수: " + courseList.size());
+            
+            // 모든 과목의 강의 시간 정보 수집
+            for (Course course : courseList) {
+                System.out.println("과목: " + course.getSubjectName() + " (course_id: " + course.getCourseId() + ")");
+                List<LectureTime> lectureTimes = courseDAO.getLectureTimesByCourseId(course.getCourseId());
+                System.out.println("  강의 시간 수: " + lectureTimes.size());
+                
+                for (LectureTime lt : lectureTimes) {
+                    String dayOfWeek = lt.getDayOfWeek();
+                    String startTime = lt.getStartTime();
+                    String endTime = lt.getEndTime();
+                    System.out.println("  - " + dayOfWeek + "요일 " + startTime + "~" + endTime);
+                    
+                    Integer dayIndex = dayIndexMap.get(dayOfWeek);
+                    if (dayIndex == null) {
+                        System.out.println("    요일 매핑 실패: " + dayOfWeek);
+                        continue; // 요일이 없으면 스킵
+                    }
+                    
+                    // 시간 범위에 해당하는 교시 찾기
+                    for (int period = 0; period < periodStartTimes.length; period++) {
+                        String periodStart = periodStartTimes[period];
+                        String periodEnd = periodEndTimes[period];
+                        
+                        if (periodStart != null && periodEnd != null) {
+                            // 강의 시간이 교시와 겹치는지 확인
+                            boolean overlaps = isTimeOverlap(startTime, endTime, periodStart, periodEnd);
+                            if (overlaps) {
+                                System.out.println("    -> " + (period + 1) + "교시 (" + periodStart + "~" + periodEnd + ")와 겹침!");
+                            }
+                            if (overlaps) {
+                                // 이미 다른 과목이 있으면 병합 표시를 위해 덮어쓰지 않음
+                                // 간단히 첫 번째 과목만 표시하거나, 여러 과목을 구분 표시
+                                if (cellData[period][dayIndex] == null || cellData[period][dayIndex].isEmpty()) {
+                                    cellData[period][dayIndex] = new TimetableCellData(
+                                        course.getSubjectName(),
+                                        course.getClassroom(),
+                                        course.getProfessorName(),
+                                        course.getCourseId()
+                                    );
+                                } else {
+                                    // 여러 과목이 겹치는 경우 표시 (선택사항)
+                                    TimetableCellData existing = cellData[period][dayIndex];
+                                    cellData[period][dayIndex] = new TimetableCellData(
+                                        existing.getSubjectName() + " / " + course.getSubjectName(),
+                                        existing.getClassroom() + " / " + course.getClassroom(),
+                                        existing.getProfessorName() + " / " + course.getProfessorName(),
+                                        course.getCourseId()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 디버깅: 셀 데이터 확인
+            int filledCells = 0;
+            for (int i = 0; i < cellData.length; i++) {
+                for (int j = 0; j < cellData[i].length; j++) {
+                    if (cellData[i][j] != null && !cellData[i][j].isEmpty()) {
+                        filledCells++;
+                        System.out.println((i + 1) + "교시 " + dayNames[j] + "요일: " + cellData[i][j].getSubjectName());
+                    }
+                }
+            }
+            System.out.println("총 채워진 셀 수: " + filledCells);
+            System.out.println("=== 시간표 업데이트 완료 ===\n");
+            
+            // 테이블 모델 생성
+            DefaultTableModel model = new DefaultTableModel(columns, 0) {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return column > 0; // 교시 열은 편집 불가
+                }
+            };
+            
+            // 행 추가
+            for (int period = 0; period < periodTimes.length; period++) {
+                Object[] row = new Object[dayNames.length + 1];
+                row[0] = periodTimes[period];
+                for (int day = 0; day < dayNames.length; day++) {
+                    row[day + 1] = cellData[period][day];
+                }
+                model.addRow(row);
+            }
+            
+            tblTimetable.setModel(model);
+            
+            // 테이블 헤더 표시
+            tblTimetable.getTableHeader().setReorderingAllowed(false);
+            tblTimetable.getTableHeader().setResizingAllowed(true);
+            tblTimetable.getTableHeader().setVisible(true);
+            tblTimetable.setShowHorizontalLines(true);
+            tblTimetable.setShowVerticalLines(true);
+            
+            // 커스텀 렌더러 설정
+            tblTimetable.setDefaultRenderer(Object.class, new TimetableCellRenderer());
+            
+            // 행 높이 설정 (9개 교시가 보이도록 충분히 크게)
+            tblTimetable.setRowHeight(80);
+            
+            // 열 너비 설정
+            tblTimetable.getColumnModel().getColumn(0).setPreferredWidth(100);
+            for (int i = 1; i <= dayNames.length; i++) {
+                tblTimetable.getColumnModel().getColumn(i).setPreferredWidth(150);
+            }
+            
+            // 테이블 전체 크기 설정 (스크롤 가능하도록 실제 크기로 설정)
+            tblTimetable.setPreferredScrollableViewportSize(new java.awt.Dimension(1050, 400));
+            
+            // 셀 더블클릭 이벤트 추가
+            tblTimetable.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent evt) {
+                    if (evt.getClickCount() == 2) {
+                        int row = tblTimetable.rowAtPoint(evt.getPoint());
+                        int col = tblTimetable.columnAtPoint(evt.getPoint());
+                        
+                        if (row >= 0 && col > 0) {
+                            Object cellValue = tblTimetable.getValueAt(row, col);
+                            if (cellValue instanceof TimetableCellData) {
+                                TimetableCellData cellData = (TimetableCellData) cellValue;
+                                if (!cellData.isEmpty()) {
+                                    // 해당 과목 수정 다이얼로그 열기
+                                    Course courseToEdit = null;
+                                    for (Course course : courseList) {
+                                        if (course.getCourseId() == cellData.getCourseId()) {
+                                            courseToEdit = course;
+                                            break;
+                                        }
+                                    }
+                                    if (courseToEdit != null) {
+                                        SubjectDialog dialog = new SubjectDialog(MainFrame.this, true, currentStudent.getStudentId(), courseToEdit);
+                                        dialog.setLocationRelativeTo(MainFrame.this);
+                                        dialog.setVisible(true);
+                                        loadCourseList(); // 목록 새로고침
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+        } catch (SQLException e) {
+            logger.log(java.util.logging.Level.SEVERE, "시간표 업데이트 실패", e);
+        }
+    }
+    
+    /**
+     * 시간 겹침 확인
+     */
+    private boolean isTimeOverlap(String start1, String end1, String start2, String end2) {
+        // 시간 문자열을 분 단위로 변환
+        int start1Min = timeToMinutes(start1);
+        int end1Min = timeToMinutes(end1);
+        int start2Min = timeToMinutes(start2);
+        int end2Min = timeToMinutes(end2);
         
-        // 시간대별로 데이터 구성 (간단한 예시)
-        // 실제로는 lecture_time 데이터를 기반으로 구성해야 함
-        model.addRow(new Object[]{"09:00-12:00", "", "", "", "", ""});
-        model.addRow(new Object[]{"13:00-16:00", "", "", "", "", ""});
-        
-        tblTimetable.setModel(model);
+        // 시간이 겹치는지 확인
+        return !(end1Min <= start2Min || start1Min >= end2Min);
+    }
+    
+    /**
+     * 시간 문자열(HH:mm)을 분 단위로 변환
+     */
+    private int timeToMinutes(String time) {
+        if (time == null) return 0;
+        String[] parts = time.split(":");
+        int hours = Integer.parseInt(parts[0]);
+        int minutes = Integer.parseInt(parts[1]);
+        return hours * 60 + minutes;
+    }
+    
+    /**
+     * 시간표 셀 렌더러
+     */
+    private class TimetableCellRenderer implements TableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            javax.swing.JLabel label = new javax.swing.JLabel();
+            label.setOpaque(true);
+            label.setBorder(javax.swing.BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+            
+            if (value instanceof TimetableCellData) {
+                TimetableCellData cellData = (TimetableCellData) value;
+                label.setText("<html><div style='text-align:center; padding:5px;'>" + 
+                             cellData.getDisplayText().replace("\n", "<br>") + "</div></html>");
+                label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setVerticalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setBackground(isSelected ? new Color(173, 216, 230) : Color.WHITE);
+            } else if (column == 0) {
+                // 교시 열
+                label.setText("<html><div style='text-align:center;'>" + value.toString().replace("\n", "<br>") + "</div></html>");
+                label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setVerticalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setBackground(new Color(240, 240, 240));
+            } else {
+                label.setText("");
+                label.setBackground(isSelected ? new Color(173, 216, 230) : Color.WHITE);
+            }
+            
+            return label;
+        }
     }
     
     /**
@@ -481,7 +730,9 @@ public class MainFrame extends javax.swing.JFrame {
 
         tabMain = new javax.swing.JTabbedPane();
         pnlTimetable = new javax.swing.JPanel();
+        scrollPaneTimetablePanel = new javax.swing.JScrollPane();
         tblTimetable = new javax.swing.JTable();
+        scrollPaneTimetable = new javax.swing.JScrollPane();
         lblTimetable = new javax.swing.JLabel();
         lblSubjects = new javax.swing.JLabel();
         jScrollPane1 = new javax.swing.JScrollPane();
@@ -500,9 +751,9 @@ public class MainFrame extends javax.swing.JFrame {
         jCalendar = new com.toedter.calendar.JCalendar();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setPreferredSize(new java.awt.Dimension(800, 550));
+        setPreferredSize(new java.awt.Dimension(1200, 700));
 
-        pnlTimetable.setPreferredSize(new java.awt.Dimension(800, 400));
+        pnlTimetable.setPreferredSize(new java.awt.Dimension(1180, 1000));
 
         tblTimetable.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         tblTimetable.setModel(new javax.swing.table.DefaultTableModel(
@@ -516,6 +767,8 @@ public class MainFrame extends javax.swing.JFrame {
                 "Title 1", "Title 2", "Title 3", "Title 4"
             }
         ));
+
+        scrollPaneTimetable.setViewportView(tblTimetable);
 
         lblTimetable.setFont(new java.awt.Font("맑은 고딕", 1, 14)); // NOI18N
         lblTimetable.setText("주간 시간표");
@@ -554,7 +807,7 @@ public class MainFrame extends javax.swing.JFrame {
                     .addGroup(pnlTimetableLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                         .addComponent(lblTimetable)
                         .addComponent(lblSubjects)
-                        .addComponent(tblTimetable, javax.swing.GroupLayout.DEFAULT_SIZE, 700, Short.MAX_VALUE)
+                        .addComponent(scrollPaneTimetable, javax.swing.GroupLayout.DEFAULT_SIZE, 1050, Short.MAX_VALUE)
                         .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 150, Short.MAX_VALUE)
                         .addComponent(lblCategories)
                         .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 150, Short.MAX_VALUE))
@@ -572,7 +825,7 @@ public class MainFrame extends javax.swing.JFrame {
                 .addGap(10, 10, 10)
                 .addComponent(lblTimetable)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(tblTimetable, javax.swing.GroupLayout.PREFERRED_SIZE, 93, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(scrollPaneTimetable, javax.swing.GroupLayout.PREFERRED_SIZE, 500, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(lblSubjects)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -589,7 +842,10 @@ public class MainFrame extends javax.swing.JFrame {
                 .addContainerGap(15, Short.MAX_VALUE))
         );
 
-        tabMain.addTab("시간표 관리", pnlTimetable);
+        scrollPaneTimetablePanel.setViewportView(pnlTimetable);
+        scrollPaneTimetablePanel.setBorder(null);
+        
+        tabMain.addTab("시간표 관리", scrollPaneTimetablePanel);
 
         lblCalendar.setFont(new java.awt.Font("맑은 고딕", 1, 24)); // NOI18N
         lblCalendar.setText("달력");
@@ -707,6 +963,8 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JPanel pnlTimetable;
     private javax.swing.JPanel pnlTodoListContainer;
     private javax.swing.JScrollPane scrTodoList;
+    private javax.swing.JScrollPane scrollPaneTimetable;
+    private javax.swing.JScrollPane scrollPaneTimetablePanel;
     private javax.swing.JTabbedPane tabMain;
     private javax.swing.JTable tblTimetable;
     // End of variables declaration//GEN-END:variables
