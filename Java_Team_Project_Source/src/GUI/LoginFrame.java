@@ -200,7 +200,7 @@ public class LoginFrame extends javax.swing.JFrame {
         setSize(new java.awt.Dimension(400, 35));
 
         lblTitle.setFont(new java.awt.Font("HY견고딕", 0, 24)); // NOI18N
-        lblTitle.setText("NexPlan");
+        lblTitle.setText("NextPlan");
         lblTitle.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
 
         lblID.setFont(new java.awt.Font("맑은 고딕", 0, 16)); // NOI18N
