@@ -2,6 +2,7 @@ package GUI;
 
 import DAO.CourseDAO;
 import DAO.EnrollmentDAO;
+import DAO.StudentDAO;
 import DAO.TodoDAO;
 import DB.DB_MAN;
 import Model.Course;
@@ -41,6 +42,7 @@ public class MainFrame extends javax.swing.JFrame {
     private Student currentStudent;
     private CourseDAO courseDAO;
     private EnrollmentDAO enrollmentDAO;
+    private StudentDAO studentDAO;
     private TodoDAO todoDAO;
     private List<Course> courseList;
     private List<Todo> todoList;
@@ -63,9 +65,11 @@ public class MainFrame extends javax.swing.JFrame {
         initDatabase();
         this.courseDAO = new CourseDAO();
         this.enrollmentDAO = new EnrollmentDAO();
+        this.studentDAO = new StudentDAO();
         this.todoDAO = new TodoDAO();
         loadTodoList();
         setTitle("NexPlan - " + student.getName() + "님 환영합니다");
+        lblWelcome.setText("NexPlan - " + student.getName() + "님 환영합니다");
         setupEventHandlers();
         loadCourseList();
     }
@@ -138,6 +142,12 @@ public class MainFrame extends javax.swing.JFrame {
         btnDeleteSubject.addActionListener(e -> handleDeleteSubject());
         
         btnAddTodo.addActionListener(e -> handleAddTodo());
+        
+        // 로그아웃 버튼
+        btnLogout.addActionListener(e -> handleLogout());
+        
+        // 회원탈퇴 버튼
+        btnWithdraw.addActionListener(e -> handleWithdraw());
         
         // 탭 변경 시 데이터 새로고침
         tabMain.addChangeListener(e -> {
@@ -718,6 +728,103 @@ public class MainFrame extends javax.swing.JFrame {
         loadTodoList();
     }
     
+    /**
+     * 로그아웃 처리
+     */
+    private void handleLogout() {
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "정말 로그아웃 하시겠습니까?", 
+            "로그아웃 확인", 
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            // 데이터베이스 연결 종료
+            if (dbManager != null) {
+                try {
+                    dbManager.dbClose();
+                } catch (Exception e) {
+                    logger.log(java.util.logging.Level.WARNING, "데이터베이스 연결 종료 중 오류", e);
+                }
+            }
+            
+            // 로그인 화면 열기
+            LoginFrame loginFrame = new LoginFrame();
+            loginFrame.setLocationRelativeTo(this);
+            loginFrame.setVisible(true);
+            
+            // 메인 화면 닫기
+            this.dispose();
+        }
+    }
+    
+    /**
+     * 회원탈퇴 처리
+     */
+    private void handleWithdraw() {
+        // 경고 메시지
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "정말 회원탈퇴를 하시겠습니까?\n\n" +
+            "회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.\n" +
+            "과목, 할일, 수강신청 정보가 모두 삭제됩니다.", 
+            "회원탈퇴 확인", 
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+        
+        // 비밀번호 확인
+        String password = JOptionPane.showInputDialog(this, 
+            "회원탈퇴를 위해 비밀번호를 입력하세요:", 
+            "비밀번호 확인", 
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (password == null || password.trim().isEmpty()) {
+            return; // 취소 또는 빈 입력
+        }
+        
+        try {
+            // 회원탈퇴 처리
+            boolean success = studentDAO.deleteStudent(currentStudent.getStudentId(), password);
+            
+            if (success) {
+                JOptionPane.showMessageDialog(this, 
+                    "회원탈퇴가 완료되었습니다.\n로그인 화면으로 돌아갑니다.", 
+                    "회원탈퇴 완료", 
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                // 데이터베이스 연결 종료
+                if (dbManager != null) {
+                    try {
+                        dbManager.dbClose();
+                    } catch (Exception e) {
+                        logger.log(java.util.logging.Level.WARNING, "데이터베이스 연결 종료 중 오류", e);
+                    }
+                }
+                
+                // 로그인 화면 열기
+                LoginFrame loginFrame = new LoginFrame();
+                loginFrame.setLocationRelativeTo(this);
+                loginFrame.setVisible(true);
+                
+                // 메인 화면 닫기
+                this.dispose();
+            } else {
+                JOptionPane.showMessageDialog(this, 
+                    "비밀번호가 일치하지 않습니다.\n회원탈퇴가 취소되었습니다.", 
+                    "회원탈퇴 실패", 
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException e) {
+            logger.log(java.util.logging.Level.SEVERE, "회원탈퇴 중 오류 발생", e);
+            JOptionPane.showMessageDialog(this, 
+                "회원탈퇴 중 오류가 발생했습니다.\n다시 시도해주세요.", 
+                "오류", 
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -728,15 +835,22 @@ public class MainFrame extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        pnlHeader = new javax.swing.JPanel();
+        lblWelcome = new javax.swing.JLabel();
+        btnLogout = new javax.swing.JButton();
+        btnWithdraw = new javax.swing.JButton();
         tabMain = new javax.swing.JTabbedPane();
-        pnlTimetable = new javax.swing.JPanel();
         scrollPaneTimetablePanel = new javax.swing.JScrollPane();
-        tblTimetable = new javax.swing.JTable();
+        pnlTimetable = new javax.swing.JPanel();
         scrollPaneTimetable = new javax.swing.JScrollPane();
+        tblTimetable = new javax.swing.JTable();
         lblTimetable = new javax.swing.JLabel();
         lblSubjects = new javax.swing.JLabel();
         jScrollPane1 = new javax.swing.JScrollPane();
         lstSubjects = new javax.swing.JList<>();
+        lblCategories = new javax.swing.JLabel();
+        jScrollPane2 = new javax.swing.JScrollPane();
+        lstCategories = new javax.swing.JList<>();
         btnDeleteSubject = new javax.swing.JButton();
         btnEditSubject = new javax.swing.JButton();
         btnAddSubject = new javax.swing.JButton();
@@ -753,7 +867,46 @@ public class MainFrame extends javax.swing.JFrame {
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setPreferredSize(new java.awt.Dimension(1200, 700));
 
+        pnlHeader.setBackground(new java.awt.Color(240, 240, 240));
+        pnlHeader.setBorder(javax.swing.BorderFactory.createMatteBorder(0, 0, 1, 0, new java.awt.Color(200, 200, 200)));
+
+        lblWelcome.setFont(new java.awt.Font("맑은 고딕", 1, 18)); // NOI18N
+        lblWelcome.setText("NexPlan");
+
+        btnLogout.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+        btnLogout.setText("로그아웃");
+
+        btnWithdraw.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
+        btnWithdraw.setText("회원탈퇴");
+        btnWithdraw.setForeground(new java.awt.Color(204, 0, 0));
+
+        javax.swing.GroupLayout pnlHeaderLayout = new javax.swing.GroupLayout(pnlHeader);
+        pnlHeader.setLayout(pnlHeaderLayout);
+        pnlHeaderLayout.setHorizontalGroup(
+            pnlHeaderLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(pnlHeaderLayout.createSequentialGroup()
+                .addGap(20, 20, 20)
+                .addComponent(lblWelcome)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(btnLogout, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(10, 10, 10)
+                .addComponent(btnWithdraw, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20))
+        );
+        pnlHeaderLayout.setVerticalGroup(
+            pnlHeaderLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(pnlHeaderLayout.createSequentialGroup()
+                .addGap(10, 10, 10)
+                .addGroup(pnlHeaderLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblWelcome)
+                    .addComponent(btnLogout, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnWithdraw, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(10, 10, 10))
+        );
+
         pnlTimetable.setPreferredSize(new java.awt.Dimension(1180, 1000));
+
+        scrollPaneTimetable.setViewportView(tblTimetable);
 
         tblTimetable.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         tblTimetable.setModel(new javax.swing.table.DefaultTableModel(
@@ -768,8 +921,6 @@ public class MainFrame extends javax.swing.JFrame {
             }
         ));
 
-        scrollPaneTimetable.setViewportView(tblTimetable);
-
         lblTimetable.setFont(new java.awt.Font("맑은 고딕", 1, 14)); // NOI18N
         lblTimetable.setText("주간 시간표");
 
@@ -779,13 +930,10 @@ public class MainFrame extends javax.swing.JFrame {
         lstSubjects.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         jScrollPane1.setViewportView(lstSubjects);
 
-        lblCategories = new javax.swing.JLabel();
         lblCategories.setFont(new java.awt.Font("맑은 고딕", 1, 14)); // NOI18N
         lblCategories.setText("사용자 카테고리");
 
-        lstCategories = new javax.swing.JList<>();
         lstCategories.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
-        jScrollPane2 = new javax.swing.JScrollPane();
         jScrollPane2.setViewportView(lstCategories);
 
         btnDeleteSubject.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
@@ -829,17 +977,17 @@ public class MainFrame extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(lblSubjects)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(lblCategories)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+                .addGap(12, 12, 12)
                 .addGroup(pnlTimetableLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnDeleteSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnEditSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnAddSubject, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(15, Short.MAX_VALUE))
+                .addContainerGap(10, Short.MAX_VALUE))
         );
 
         scrollPaneTimetablePanel.setViewportView(pnlTimetable);
@@ -918,11 +1066,15 @@ public class MainFrame extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(pnlHeader, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addComponent(tabMain)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(tabMain)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(pnlHeader, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, 0)
+                .addComponent(tabMain))
         );
 
         pack();
@@ -947,6 +1099,8 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JButton btnAddTodo;
     private javax.swing.JButton btnDeleteSubject;
     private javax.swing.JButton btnEditSubject;
+    private javax.swing.JButton btnLogout;
+    private javax.swing.JButton btnWithdraw;
     private com.toedter.calendar.JCalendar jCalendar;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
@@ -957,9 +1111,11 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JLabel lblSubjects;
     private javax.swing.JLabel lblTimetable;
     private javax.swing.JLabel lblTodoList;
-    private javax.swing.JList<String> lstSubjects;
+    private javax.swing.JLabel lblWelcome;
     private javax.swing.JList<String> lstCategories;
+    private javax.swing.JList<String> lstSubjects;
     private javax.swing.JPanel pnlCalendarTodo;
+    private javax.swing.JPanel pnlHeader;
     private javax.swing.JPanel pnlTimetable;
     private javax.swing.JPanel pnlTodoListContainer;
     private javax.swing.JScrollPane scrTodoList;

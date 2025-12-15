@@ -1,8 +1,25 @@
 # 데이터베이스 설정 가이드
 
+## 📌 빠른 시작 (팀원용)
+
+**Windows 사용자:**
+```bash
+install_database.bat
+```
+
+**Mac/Linux 사용자:**
+```bash
+chmod +x install_database.sh
+./install_database.sh
+```
+
+또는 **SETUP_DATABASE.md** 파일을 참고하세요.
+
 ## 파일 설명
 - `database_schema.sql`: 데이터베이스 스키마 생성 (테이블 생성)
-- `database_dummy_data.sql`: 더미 데이터 삽입
+- `database_migration_add_status.sql`: 할일 상태(status) 컬럼 추가
+- `update_timetable_data.sql`: 최신 시간표 데이터 삽입 (권장)
+- `database_dummy_data.sql`: 구버전 더미 데이터 (사용 안 함)
 
 ## 실행 방법
 

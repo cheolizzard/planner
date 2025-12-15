@@ -4,12 +4,16 @@
  */
 package GUI;
 
+import DAO.CourseDAO;
+import DAO.EnrollmentDAO;
 import DAO.StudentDAO;
+import Model.Enrollment;
 import Model.Student;
 import Util.CaptchaGenerator;
 import Util.UIHelper;
 import java.awt.Color;
 import java.sql.SQLException;
+import java.util.List;
 import javax.swing.JOptionPane;
 
 /**
@@ -152,8 +156,16 @@ public class RegisterDialog extends javax.swing.JDialog {
             boolean success = studentDAO.register(student);
             
             if (success) {
+                // 기본 시간표 등록 (김철중의 기본 시간표와 동일하게 설정)
+                try {
+                    setupDefaultTimetable(studentId);
+                } catch (SQLException e) {
+                    logger.log(java.util.logging.Level.WARNING, "기본 시간표 등록 중 오류 발생", e);
+                    // 기본 시간표 등록 실패해도 회원가입은 성공으로 처리
+                }
+                
                 JOptionPane.showMessageDialog(this, 
-                    "회원가입이 완료되었습니다!\n로그인 화면으로 돌아갑니다.", 
+                    "회원가입이 완료되었습니다!\n기본 시간표가 자동으로 등록되었습니다.\n로그인 화면으로 돌아갑니다.", 
                     "회원가입 성공", 
                     JOptionPane.INFORMATION_MESSAGE);
                 dispose();
@@ -257,6 +269,44 @@ public class RegisterDialog extends javax.swing.JDialog {
         }
         
         return true;
+    }
+    
+    /**
+     * 기본 시간표 등록 (시간표.pdf에 나와있는 실제 시간표)
+     * @param studentId 학번
+     * @throws SQLException 데이터베이스 오류
+     */
+    private void setupDefaultTimetable(String studentId) throws SQLException {
+        CourseDAO courseDAO = new CourseDAO();
+        
+        // 시간표.pdf에 나와있는 실제 시간표
+        // 월요일 13:35-16:15: JAVA프로그래밍 | 7호관-301 | 이원주 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "JAVA프로그래밍", "이원주", 
+            "7호관-301", "월", "13:35", "16:15", 3);
+        
+        // 월요일 16:20-19:55: 시스템분석설계 | 4호관-403 | 김상일 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "시스템분석설계", "김상일", 
+            "4호관-403", "월", "16:20", "19:55", 3);
+        
+        // 화요일 09:55-12:35: 운영체제 | 5호관-117 | 조영석 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "운영체제", "조영석", 
+            "5호관-117", "화", "09:55", "12:35", 3);
+        
+        // 화요일 13:35-16:15: Oracle SQL&PL/SQL | 7호관-315 | 허태성 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "Oracle SQL&PL/SQL", "허태성", 
+            "7호관-315", "화", "13:35", "16:15", 3);
+        
+        // 수요일 13:35-16:15: S/W프로젝트 | 7호관-315 | 조규철 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "S/W프로젝트", "조규철", 
+            "7호관-315", "수", "13:35", "16:15", 3);
+        
+        // 목요일 09:55-12:35: 정보보안 | 5호관-310 | 최성수 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "정보보안", "최성수", 
+            "5호관-310", "목", "09:55", "12:35", 3);
+        
+        // 목요일 13:35-16:15: JSP | 4호관-403 | 이선애 교수님
+        courseDAO.addCourseWithEnrollment(studentId, "JSP", "이선애", 
+            "4호관-403", "목", "13:35", "16:15", 3);
     }
 
     /**
