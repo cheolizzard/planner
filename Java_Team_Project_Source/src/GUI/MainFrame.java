@@ -68,8 +68,8 @@ public class MainFrame extends javax.swing.JFrame {
         this.studentDAO = new StudentDAO();
         this.todoDAO = new TodoDAO();
         loadTodoList();
-        setTitle("NexPlan - " + student.getName() + "님 환영합니다");
-        lblWelcome.setText("NexPlan - " + student.getName() + "님 환영합니다");
+        setTitle("NextPlan - " + student.getName() + "님 환영합니다");
+        lblWelcome.setText("NextPlan - " + student.getName() + "님 환영합니다");
         setupEventHandlers();
         loadCourseList();
     }
@@ -871,7 +871,7 @@ public class MainFrame extends javax.swing.JFrame {
         pnlHeader.setBorder(javax.swing.BorderFactory.createMatteBorder(0, 0, 1, 0, new java.awt.Color(200, 200, 200)));
 
         lblWelcome.setFont(new java.awt.Font("맑은 고딕", 1, 18)); // NOI18N
-        lblWelcome.setText("NexPlan");
+        lblWelcome.setText("NextPlan");
 
         btnLogout.setFont(new java.awt.Font("맑은 고딕", 0, 14)); // NOI18N
         btnLogout.setText("로그아웃");
