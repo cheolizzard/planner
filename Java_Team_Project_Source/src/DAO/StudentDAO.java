@@ -144,5 +144,32 @@ public class StudentDAO {
             if (pstmt != null) pstmt.close();
         }
     }
+    
+    /**
+     * 회원탈퇴 - 학생 삭제 (비밀번호 확인)
+     * @param studentId 학번
+     * @param password 비밀번호 (확인용)
+     * @return 성공 시 true, 실패 시 false
+     */
+    public boolean deleteStudent(String studentId, String password) throws SQLException {
+        // 먼저 비밀번호 확인
+        Student student = login(studentId, password);
+        if (student == null) {
+            return false; // 비밀번호가 일치하지 않음
+        }
+        
+        // 학생 삭제 (CASCADE로 enrollment, todo_list도 자동 삭제됨)
+        String sql = "DELETE FROM student WHERE student_id = ?";
+        PreparedStatement pstmt = null;
+        
+        try {
+            pstmt = dbManager.prepareStatement(sql);
+            pstmt.setString(1, studentId);
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } finally {
+            if (pstmt != null) pstmt.close();
+        }
+    }
 }
 
